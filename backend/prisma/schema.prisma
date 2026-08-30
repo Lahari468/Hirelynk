@@ -1,0 +1,432 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  CONTRACT
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SCREENING
+  SHORTLISTED
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  TECHNICAL
+  HR
+  ONSITE
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  APPLICATION_SUBMITTED
+  APPLICATION_STATUS_CHANGED
+  INTERVIEW_SCHEDULED
+  INTERVIEW_CANCELLED
+  NEW_APPLICATION
+  OFFER_RECEIVED
+}
+
+enum AuditAction {
+  LOGIN
+  JOB_CREATED
+  JOB_UPDATED
+  JOB_PUBLISHED
+  APPLICATION_CREATED
+  APPLICATION_STATUS_CHANGED
+  INTERVIEW_SCHEDULED
+  USER_SUSPENDED
+}
+
+// ============================================================================
+// USER
+// ============================================================================
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  candidateProfile       CandidateProfile?
+  recruiterProfile       RecruiterProfile?
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+  statusHistoryChangedBy ApplicationStatusHistory[] @relation("ChangedByUser")
+  interviewsScheduledBy  Interview[]                @relation("ScheduledByUser")
+  jobsAsRecruiter        Job[]                      @relation("RecruiterUser")
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+// ============================================================================
+// COMPANY
+// ============================================================================
+
+model Company {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  website     String?
+  logoUrl     String?
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  recruiters RecruiterProfile[]
+  jobs       Job[]
+
+  @@index([name])
+  @@index([location])
+}
+
+// ============================================================================
+// CANDIDATE PROFILE
+// ============================================================================
+
+model CandidateProfile {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @db.Uuid
+  headline        String?
+  bio             String?
+  phone           String?
+  location        String?
+  experienceYears Int?
+  education       String?
+  linkedinUrl     String?
+  githubUrl       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relationships
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumes      Resume[]
+  applications Application[]
+  skills       CandidateSkill[]
+  savedJobs    SavedJob[]
+
+  @@index([userId])
+  @@index([location])
+}
+
+// ============================================================================
+// RECRUITER PROFILE
+// ============================================================================
+
+model RecruiterProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  companyId String   @db.Uuid
+  jobTitle  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+}
+
+// ============================================================================
+// JOB
+// ============================================================================
+
+model Job {
+  id             String         @id @default(uuid()) @db.Uuid
+  companyId      String         @db.Uuid
+  recruiterId    String         @db.Uuid
+  title          String
+  description    String
+  location       String
+  employmentType EmploymentType
+  experienceMin  Int?
+  experienceMax  Int?
+  salaryMin      Decimal?
+  salaryMax      Decimal?
+  status         JobStatus      @default(DRAFT)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relationships
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recruiter    User          @relation("RecruiterUser", fields: [recruiterId], references: [id], onDelete: Cascade)
+  applications Application[]
+  skills       JobSkill[]
+  savedJobs    SavedJob[]
+
+  @@index([companyId])
+  @@index([recruiterId])
+  @@index([status])
+  @@index([employmentType])
+  @@index([location])
+  @@index([createdAt])
+  @@index([title])
+}
+
+// ============================================================================
+// APPLICATION
+// ============================================================================
+
+model Application {
+  id          String            @id @default(uuid()) @db.Uuid
+  candidateId String            @db.Uuid
+  jobId       String?           @db.Uuid
+  resumeId    String?           @db.Uuid
+  coverLetter String?
+  status      ApplicationStatus @default(APPLIED)
+  appliedAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relationships
+  candidate     CandidateProfile           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job           Job?                       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  resume        Resume?                    @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  statusHistory ApplicationStatusHistory[]
+  interviews    Interview[]
+
+  // Prevent duplicate applications from same candidate to same job
+  @@unique([candidateId, jobId])
+  @@index([candidateId])
+  @@index([jobId])
+  @@index([status])
+  @@index([appliedAt])
+}
+
+// ============================================================================
+// APPLICATION STATUS HISTORY
+// ============================================================================
+
+model ApplicationStatusHistory {
+  id            String             @id @default(uuid()) @db.Uuid
+  applicationId String             @db.Uuid
+  oldStatus     ApplicationStatus?
+  newStatus     ApplicationStatus
+  changedBy     String             @db.Uuid
+  comment       String?
+  changedAt     DateTime           @default(now())
+
+  // Relationships
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedByUser User        @relation("ChangedByUser", fields: [changedBy], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([changedAt])
+  @@index([changedBy])
+}
+
+// ============================================================================
+// RESUME
+// ============================================================================
+
+model Resume {
+  id                 String   @id @default(uuid()) @db.Uuid
+  candidateId        String   @db.Uuid
+  fileName           String
+  fileUrl            String
+  cloudinaryPublicId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relationships
+  candidate    CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([candidateId])
+}
+
+// ============================================================================
+// INTERVIEW
+// ============================================================================
+
+model Interview {
+  id            String          @id @default(uuid()) @db.Uuid
+  applicationId String          @db.Uuid
+  scheduledBy   String          @db.Uuid
+  interviewType InterviewType
+  scheduledAt   DateTime
+  duration      Int?
+  meetingLink   String?
+  status        InterviewStatus @default(SCHEDULED)
+  feedback      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relationships
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  scheduledByUser User        @relation("ScheduledByUser", fields: [scheduledBy], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([scheduledBy])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+// ============================================================================
+// SKILL
+// ============================================================================
+
+model Skill {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  // Relationships
+  candidateSkills CandidateSkill[]
+  jobSkills       JobSkill[]
+
+  @@index([name])
+}
+
+// ============================================================================
+// CANDIDATE SKILL
+// ============================================================================
+
+model CandidateSkill {
+  id          String   @id @default(uuid()) @db.Uuid
+  candidateId String   @db.Uuid
+  skillId     String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  skill     Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate skill assignments
+  @@unique([candidateId, skillId])
+  @@index([candidateId])
+  @@index([skillId])
+}
+
+// ============================================================================
+// JOB SKILL
+// ============================================================================
+
+model JobSkill {
+  id        String   @id @default(uuid()) @db.Uuid
+  jobId     String   @db.Uuid
+  skillId   String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  // Relationships
+  job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate skill assignments
+  @@unique([jobId, skillId])
+  @@index([jobId])
+  @@index([skillId])
+}
+
+// ============================================================================
+// SAVED JOB
+// ============================================================================
+
+model SavedJob {
+  id          String   @id @default(uuid()) @db.Uuid
+  candidateId String   @db.Uuid
+  jobId       String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  candidate CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job       Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate saved jobs
+  @@unique([candidateId, jobId])
+  @@index([candidateId])
+  @@index([jobId])
+}
+
+// ============================================================================
+// NOTIFICATION
+// ============================================================================
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// AUDIT LOG
+// ============================================================================
+
+model AuditLog {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String?     @db.Uuid
+  action     AuditAction
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  // Relationships
+  // SetNull preserves audit history even if user is deleted
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+  @@index([action])
+}
