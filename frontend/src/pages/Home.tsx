@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { apiUtils } from "../services/api.js";
 
+type ApiStatus = "Checking..." | "✅ Connected" | "❌ Disconnected";
+
 export const Home = (): JSX.Element => {
-  const [apiStatus, setApiStatus] = useState<string>("Checking...");
+  const [apiStatus, setApiStatus] = useState<ApiStatus>("Checking...");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -11,10 +13,11 @@ export const Home = (): JSX.Element => {
         const response = await apiUtils.get<unknown>("/health");
         if (response.success) {
           setApiStatus("✅ Connected");
+        } else {
+          setApiStatus("❌ Disconnected");
         }
-      } catch (error) {
+      } catch {
         setApiStatus("❌ Disconnected");
-        console.error("API Error:", error);
       } finally {
         setLoading(false);
       }
@@ -31,7 +34,7 @@ export const Home = (): JSX.Element => {
             🚀 HireLynk
           </h1>
           <p className="text-xl text-gray-600 mb-2">
-            Modern Recruitment & Applicant Tracking System
+            Modern Recruitment &amp; Applicant Tracking System
           </p>
           <p className="text-gray-500">Version 1.0.0 (Foundation)</p>
         </div>
@@ -80,7 +83,7 @@ export const Home = (): JSX.Element => {
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
           <h3 className="font-semibold text-blue-900 mb-2">Phase 1: Foundation</h3>
           <p className="text-sm text-blue-800 mb-3">
             This is the foundation phase. Core infrastructure is ready:
@@ -89,7 +92,7 @@ export const Home = (): JSX.Element => {
             <li>✅ Frontend setup (React + Vite + Tailwind)</li>
             <li>✅ Backend setup (Express + TypeScript)</li>
             <li>✅ API client configuration</li>
-            <li>✅ Error handling & logging</li>
+            <li>✅ Error handling &amp; logging</li>
             <li>✅ Security (CORS, Helmet, Rate limiting)</li>
             <li>✅ Health check endpoint</li>
           </ul>
@@ -98,18 +101,19 @@ export const Home = (): JSX.Element => {
           </p>
         </div>
 
-        <div className="mt-12">
-          <p className="text-sm text-gray-600 mb-4">API Endpoints:</p>
-          <div className="space-x-4">
-            <a>
+        <div className="mt-12 space-y-4">
+          <p className="text-sm text-gray-600">API Endpoints:</p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <a
               href="http://localhost:5000/api/health"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline">
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
               GET /api/health
             </a>
             <span className="text-gray-400">•</span>
-            
+            <a
               href="http://localhost:5000/api"
               target="_blank"
               rel="noopener noreferrer"

@@ -1,7 +1,7 @@
 export const CONSTANTS = {
   APP_NAME: "HireLynk",
   APP_VERSION: "1.0.0",
-  
+
   RATE_LIMIT_WINDOW_MS: 15 * 60 * 1000,
   RATE_LIMIT_MAX_REQUESTS: 100,
 

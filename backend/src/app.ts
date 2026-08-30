@@ -9,6 +9,9 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { sendError } from "./utils/response.js";
 import routes from "./routes/index.js";
 
+/**
+ * Create and configure Express application
+ */
 export const createApp = (): express.Application => {
   const app = express();
 

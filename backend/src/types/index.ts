@@ -1,18 +1,28 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
-    email: string;
+    email?: string;
     role: string;
   };
 }
+
+export type AsyncController = (
+  req: AuthenticatedRequest,
+  res: Response
+) => Promise<void>;
+
+/**
+ * API Response types
+ */
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
   error?: ApiError;
+  pagination?: PaginationInfo;
 }
 
 export interface ApiError {
@@ -20,6 +30,18 @@ export interface ApiError {
   message: string;
   details?: Record<string, unknown>;
 }
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+  hasMore: boolean;
+}
+
+/**
+ * Error types
+ */
 
 export class AppError extends Error {
   constructor(
@@ -66,4 +88,28 @@ export class ConflictError extends AppError {
     super(409, "CONFLICT", message, details);
     this.name = "ConflictError";
   }
+}
+
+/**
+ * User types
+ */
+
+export interface UserPayload {
+  id: string;
+  email: string;
+  role: "CANDIDATE" | "RECRUITER" | "ADMIN";
+}
+
+/**
+ * Pagination types
+ */
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: PaginationInfo;
 }

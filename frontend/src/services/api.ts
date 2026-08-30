@@ -32,7 +32,7 @@ apiClient.interceptors.response.use(
   (response) => {
     return response.data;
   },
-  async (error: unknown) => {
+  (error: unknown) => {
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError<ApiResponse>;
 
@@ -42,7 +42,7 @@ apiClient.interceptors.response.use(
         window.location.href = "/login";
       }
 
-      const apiError = axiosError.response?.data as ApiResponse;
+      const apiError = axiosError.response?.data as ApiResponse | undefined;
       if (apiError) {
         return Promise.reject(apiError);
       }
@@ -62,24 +62,42 @@ apiClient.interceptors.response.use(
 );
 
 export const apiUtils = {
-  get: <T = unknown>(url: string, config?: Record<string, unknown>) => {
-    return apiClient.get<T>(url, config) as Promise<ApiResponse<T>>;
+  get: <T = unknown>(
+    url: string,
+    config?: Record<string, unknown>
+  ): Promise<ApiResponse<T>> => {
+    return apiClient.get<ApiResponse<T>>(url, config) as unknown as Promise<ApiResponse<T>>;
   },
 
-  post: <T = unknown>(url: string, data?: unknown, config?: Record<string, unknown>) => {
-    return apiClient.post<T>(url, data, config) as Promise<ApiResponse<T>>;
+  post: <T = unknown>(
+    url: string,
+    data?: unknown,
+    config?: Record<string, unknown>
+  ): Promise<ApiResponse<T>> => {
+    return apiClient.post<ApiResponse<T>>(url, data, config) as unknown as Promise<ApiResponse<T>>;
   },
 
-  patch: <T = unknown>(url: string, data?: unknown, config?: Record<string, unknown>) => {
-    return apiClient.patch<T>(url, data, config) as Promise<ApiResponse<T>>;
+  patch: <T = unknown>(
+    url: string,
+    data?: unknown,
+    config?: Record<string, unknown>
+  ): Promise<ApiResponse<T>> => {
+    return apiClient.patch<ApiResponse<T>>(url, data, config) as unknown as Promise<ApiResponse<T>>;
   },
 
-  put: <T = unknown>(url: string, data?: unknown, config?: Record<string, unknown>) => {
-    return apiClient.put<T>(url, data, config) as Promise<ApiResponse<T>>;
+  put: <T = unknown>(
+    url: string,
+    data?: unknown,
+    config?: Record<string, unknown>
+  ): Promise<ApiResponse<T>> => {
+    return apiClient.put<ApiResponse<T>>(url, data, config) as unknown as Promise<ApiResponse<T>>;
   },
 
-  delete: <T = unknown>(url: string, config?: Record<string, unknown>) => {
-    return apiClient.delete<T>(url, config) as Promise<ApiResponse<T>>;
+  delete: <T = unknown>(
+    url: string,
+    config?: Record<string, unknown>
+  ): Promise<ApiResponse<T>> => {
+    return apiClient.delete<ApiResponse<T>>(url, config) as unknown as Promise<ApiResponse<T>>;
   },
 };
 
