@@ -5,23 +5,22 @@ import {
   AuthenticationError,
   ConflictError,
   NotFoundError,
+  ValidationError,
 } from "../types/index.js";
+import type {
+  RecruiterRegisterRequest,
+  CandidateRegisterRequest,
+} from "../validators/authValidator.js";
 
 const prisma = new PrismaClient();
 
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role: UserRole;
-}
 
 interface LoginData {
   email: string;
   password: string;
 }
 
-interface AuthResponse {
+interface CandidateAuthResponse {
   user: {
     id: string;
     name: string;
@@ -33,12 +32,28 @@ interface AuthResponse {
   refreshToken: string;
 }
 
+interface RecruiterAuthResponse {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: UserRole;
+    isActive: boolean;
+  };
+  company: {
+    id: string;
+    name: string;
+  };
+  accessToken: string;
+  refreshToken: string;
+}
+
 /**
  * Register a new candidate
  */
 export const registerCandidate = async (
-  data: RegisterData
-): Promise<AuthResponse> => {
+  data: CandidateRegisterRequest
+): Promise<CandidateAuthResponse> => {
   const normalizedEmail = data.email.toLowerCase();
 
   // Check if email already exists
@@ -93,12 +108,17 @@ export const registerCandidate = async (
 };
 
 /**
- * Register a new recruiter
+ * Register a new recruiter with company
  */
 export const registerRecruiter = async (
-  data: RegisterData
-): Promise<AuthResponse> => {
+  data: RecruiterRegisterRequest
+): Promise<RecruiterAuthResponse> => {
   const normalizedEmail = data.email.toLowerCase();
+
+  // Validate company data is present
+  if (!data.company || !data.company.name) {
+    throw new ValidationError("Company information is required for recruiter registration");
+  }
 
   // Check if email already exists
   const existingUser = await prisma.user.findUnique({
@@ -112,8 +132,14 @@ export const registerRecruiter = async (
   // Hash password
   const passwordHash = await hashPassword(data.password);
 
-  // Create user and recruiter profile in transaction
+  // Normalize URLs
+  const website = data.company.website
+    ? data.company.website.trim() || null
+    : null;
+
+  // Create user, company, and recruiter profile in transaction
   const result = await prisma.$transaction(async (tx) => {
+    // Create user
     const user = await tx.user.create({
       data: {
         name: data.name,
@@ -124,28 +150,44 @@ export const registerRecruiter = async (
       },
     });
 
-    // Create recruiter profile (without company initially)
-    await tx.recruiterProfile.create({
+    // Create company
+    const company = await tx.company.create({
       data: {
-        userId: user.id,
-        companyId: "00000000-0000-0000-0000-000000000000",
+        name: data.company.name,
+        description: data.company.description || null,
+        website,
+        logoUrl: null,
+        location: data.company.location || null,
       },
     });
 
-    return user;
+    // Create recruiter profile with the new company
+    await tx.recruiterProfile.create({
+      data: {
+        userId: user.id,
+        companyId: company.id,
+        jobTitle: null,
+      },
+    });
+
+    return { user, company };
   });
 
   // Generate tokens
-  const accessToken = generateAccessToken(result.id, result.role);
-  const refreshToken = generateRefreshToken(result.id, result.role);
+  const accessToken = generateAccessToken(result.user.id, result.user.role);
+  const refreshToken = generateRefreshToken(result.user.id, result.user.role);
 
   return {
     user: {
-      id: result.id,
-      name: result.name,
-      email: result.email,
-      role: result.role,
-      isActive: result.isActive,
+      id: result.user.id,
+      name: result.user.name,
+      email: result.user.email,
+      role: result.user.role,
+      isActive: result.user.isActive,
+    },
+    company: {
+      id: result.company.id,
+      name: result.company.name,
     },
     accessToken,
     refreshToken,
@@ -155,7 +197,7 @@ export const registerRecruiter = async (
 /**
  * Login user
  */
-export const login = async (data: LoginData): Promise<AuthResponse> => {
+export const login = async (data: LoginData): Promise<CandidateAuthResponse> => {
   const normalizedEmail = data.email.toLowerCase();
 
   // Find user (use generic error to not reveal if email exists)

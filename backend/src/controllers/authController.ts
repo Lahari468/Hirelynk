@@ -19,15 +19,30 @@ const COOKIE_OPTIONS = {
  */
 export const register: AsyncController = async (req, res) => {
   const data = registerSchema.parse(req.body);
-  const result =
-    data.role === "CANDIDATE"
-      ? await authService.registerCandidate(data)
-      : await authService.registerRecruiter(data);
+
+  let result;
+  if (data.role === "CANDIDATE") {
+    result = await authService.registerCandidate(data);
+  } else if (data.role === "RECRUITER") {
+    result = await authService.registerRecruiter(data);
+  } else {
+    res.status(400).json({
+      success: false,
+      message: "Invalid registration role",
+    });
+    return;
+  }
 
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, COOKIE_OPTIONS);
 
-  created(res, "Registration successful", {
+  const message =
+    data.role === "RECRUITER"
+      ? "Recruiter registered successfully"
+      : "Registration successful";
+
+  created(res, message, {
     user: result.user,
+    ...(data.role === "RECRUITER" && { company: (result as any).company }),
     accessToken: result.accessToken,
   });
 };
