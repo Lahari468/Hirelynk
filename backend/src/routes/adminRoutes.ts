@@ -7,11 +7,50 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 const router = Router();
 
 /**
- * Admin routes
- * All require authentication and ADMIN role
+ * Admin routes - all require authentication and ADMIN role
  */
 
-// GET /api/admin/companies
+// GET /api/admin/dashboard
+router.get(
+  "/dashboard",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(adminController.getDashboard)
+);
+
+// GET /api/admin/users
+router.get(
+  "/users",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(adminController.listUsers)
+);
+
+// GET /api/admin/users/:id
+router.get(
+  "/users/:id",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(adminController.getUserDetails)
+);
+
+// GET /api/admin/jobs
+router.get(
+  "/jobs",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(adminController.listJobs)
+);
+
+// GET /api/admin/jobs/:id
+router.get(
+  "/jobs/:id",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(adminController.getJobDetails)
+);
+
+// GET /api/admin/companies (existing - reuse)
 router.get(
   "/companies",
   authenticate,
@@ -19,12 +58,20 @@ router.get(
   asyncHandler(adminController.listCompanies)
 );
 
-// GET /api/admin/recruiters
+// GET /api/admin/recruiters (existing - reuse)
 router.get(
   "/recruiters",
   authenticate,
   authorize("ADMIN"),
   asyncHandler(adminController.listRecruiters)
+);
+
+// GET /api/admin/audit-logs
+router.get(
+  "/audit-logs",
+  authenticate,
+  authorize("ADMIN"),
+  asyncHandler(adminController.listAuditLogs)
 );
 
 export default router;

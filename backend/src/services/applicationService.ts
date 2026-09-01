@@ -60,6 +60,35 @@ interface ApplicationResponse {
   candidate?: CandidateInfo;
 }
 
+const toJobInfo = (
+  job: {
+    id: string;
+    title: string;
+    location: string;
+    employmentType: string;
+    company: {
+      id: string;
+      name: string;
+    };
+  } | null | undefined
+): JobInfo | undefined => {
+  if (!job) {
+    return undefined;
+  }
+
+  return {
+    id: job.id,
+    title: job.title,
+    location: job.location,
+    employmentType: job.employmentType,
+    company: job.company,
+  };
+};
+
+const toResumeInfo = (
+  resume: ResumeInfo | null | undefined
+): ResumeInfo | undefined => resume ?? undefined;
+
 /**
  * Valid status transitions
  */
@@ -174,8 +203,22 @@ export const createApplication = async (
       },
     });
 
+    // Create notification for recruiter
+    await tx.notification.create({
+      data: {
+        userId: job.recruiterId,
+        type: "NEW_APPLICATION",
+        title: "New Application",
+        message: `A candidate has applied to ${job.title}`,
+      },
+    });
+
     return application;
   });
+
+  if (!result.job) {
+    throw new NotFoundError("Job not found");
+  }
 
   return {
     id: result.id,
@@ -183,8 +226,8 @@ export const createApplication = async (
     appliedAt: result.appliedAt,
     updatedAt: result.updatedAt,
     coverLetter: result.coverLetter,
-    job: mapJobInfo(result.job),
-    resume: mapResumeInfo(result.resume),
+    job: toJobInfo(result.job),
+    resume: toResumeInfo(result.resume),
   };
 };
 
@@ -248,8 +291,8 @@ export const getCandidateApplications = async (
     appliedAt: app.appliedAt,
     updatedAt: app.updatedAt,
     coverLetter: app.coverLetter,
-    job: mapJobInfo(app.job),
-    resume: mapResumeInfo(app.resume),
+    job: toJobInfo(app.job),
+    resume: toResumeInfo(app.resume),
   }));
 
   return {
@@ -313,8 +356,8 @@ export const getCandidateApplication = async (
     appliedAt: application.appliedAt,
     updatedAt: application.updatedAt,
     coverLetter: application.coverLetter,
-    job: mapJobInfo(application.job),
-    resume: mapResumeInfo(application.resume),
+    job: toJobInfo(application.job),
+    resume: toResumeInfo(application.resume),
     statusHistory: application.statusHistory,
   };
 };
@@ -381,7 +424,7 @@ export const getJobApplications = async (
     appliedAt: app.appliedAt,
     updatedAt: app.updatedAt,
     coverLetter: app.coverLetter,
-    resume: mapResumeInfo(app.resume),
+    resume: toResumeInfo(app.resume),
   }));
 
   return {
@@ -432,7 +475,11 @@ export const getRecruiterApplication = async (
     throw new NotFoundError("Application not found");
   }
 
-  if (!application.job || application.job.recruiterId !== recruiterId) {
+  if (!application.job) {
+    throw new NotFoundError("Job not found");
+  }
+
+  if (application.job.recruiterId !== recruiterId) {
     throw new NotFoundError("Application not found");
   }
 
@@ -442,7 +489,7 @@ export const getRecruiterApplication = async (
     appliedAt: application.appliedAt,
     updatedAt: application.updatedAt,
     coverLetter: application.coverLetter,
-    resume: mapResumeInfo(application.resume),
+    resume: toResumeInfo(application.resume),
     statusHistory: application.statusHistory,
     candidate: {
       id: application.candidate.id,
@@ -474,6 +521,9 @@ export const updateApplicationStatus = async (
       job: {
         select: { recruiterId: true },
       },
+      candidate: {
+        select: { userId: true },
+      },
     },
   });
 
@@ -481,7 +531,11 @@ export const updateApplicationStatus = async (
     throw new NotFoundError("Application not found");
   }
 
-  if (!application.job || application.job.recruiterId !== recruiterId) {
+  if (!application.job) {
+    throw new NotFoundError("Job not found");
+  }
+
+  if (application.job.recruiterId !== recruiterId) {
     throw new NotFoundError("Application not found");
   }
 
@@ -525,6 +579,16 @@ export const updateApplicationStatus = async (
       },
     });
 
+    // Create notification for candidate
+    await tx.notification.create({
+      data: {
+        userId: application.candidate.userId,
+        type: "APPLICATION_STATUS_CHANGED",
+        title: "Application Status Updated",
+        message: `Your application status has changed to ${data.status}`,
+      },
+    });
+
     return updated;
   });
 
@@ -551,37 +615,5 @@ export const updateApplicationStatus = async (
     updatedAt: result.updatedAt,
     coverLetter: result.coverLetter,
     statusHistory: fullApplication?.statusHistory || [],
-  };
-};
-
-const mapJobInfo = (
-  job: {
-    id: string;
-    title: string;
-    location: string;
-    employmentType: string;
-    company: { id: string; name: string };
-  } | null
-): JobInfo | undefined => {
-  if (!job) return undefined;
-
-  return {
-    id: job.id,
-    title: job.title,
-    location: job.location,
-    employmentType: job.employmentType,
-    company: job.company,
-  };
-};
-
-const mapResumeInfo = (
-  resume: { id: string; fileName: string; fileUrl: string } | null
-): ResumeInfo | undefined => {
-  if (!resume) return undefined;
-
-  return {
-    id: resume.id,
-    fileName: resume.fileName,
-    fileUrl: resume.fileUrl,
   };
 };

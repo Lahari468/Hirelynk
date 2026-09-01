@@ -2,14 +2,17 @@ import { AsyncController } from "../types/index.js";
 import {
   createJobSchema,
   updateJobSchema,
-  jobSearchSchema,
+  publishJobSchema,
+  closeJobSchema,
+  publicJobListQuerySchema,
+  recruiterJobListQuerySchema,
 } from "../validators/jobValidator.js";
 import * as jobService from "../services/jobService.js";
 import { created, ok } from "../utils/response.js";
 
 /**
  * POST /api/jobs
- * Create a new job (recruiter only)
+ * Create job (recruiter only)
  */
 export const createJob: AsyncController = async (req, res) => {
   if (!req.user) {
@@ -28,7 +31,7 @@ export const createJob: AsyncController = async (req, res) => {
 
 /**
  * GET /api/jobs/mine
- * Get recruiter's own jobs (recruiter only)
+ * Get recruiter's jobs
  */
 export const getMyJobs: AsyncController = async (req, res) => {
   if (!req.user) {
@@ -39,52 +42,56 @@ export const getMyJobs: AsyncController = async (req, res) => {
     return;
   }
 
-  const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-  const limit = Math.min(
-    50,
-    Math.max(1, parseInt(req.query.limit as string, 10) || 10)
-  );
-  const status = req.query.status as string | undefined;
-  const search = req.query.search as string | undefined;
-  const sort = (req.query.sort as "newest" | "oldest" | "salary_high" | "salary_low") || "newest";
-
-  const result = await jobService.getRecruiterJobs(
-    req.user.id,
-    page,
-    limit,
-    status ? (status.toUpperCase() as any) : undefined,
-    search,
-    sort
-  );
+  const query = recruiterJobListQuerySchema.parse(req.query);
+  const result = await jobService.getRecruiterJobs(req.user.id, query);
 
   ok(res, "Jobs retrieved", result);
 };
 
 /**
  * GET /api/jobs
- * Search public jobs (open to all)
+ * Get public jobs (public search & discovery)
  */
-export const searchJobs: AsyncController = async (req, res) => {
-  const params = jobSearchSchema.parse(req.query);
-  const result = await jobService.searchPublicJobs(params);
+export const getPublicJobs: AsyncController = async (req, res) => {
+  const query = publicJobListQuerySchema.parse(req.query);
+  const result = await jobService.getPublicJobs(query);
 
   ok(res, "Jobs retrieved", result);
 };
 
 /**
  * GET /api/jobs/:id
- * Get single job (public - only open jobs)
+ * Get single public job
  */
 export const getJob: AsyncController = async (req, res) => {
   const { id } = req.params;
-  const job = await jobService.getPublicJob(id);
+  const job = await jobService.getPublicJobById(id);
+
+  ok(res, "Job retrieved", job);
+};
+
+/**
+ * GET /api/jobs/:id/recruiter
+ * Get recruiter's job details
+ */
+export const getRecruiterJob: AsyncController = async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      message: "Authentication required",
+    });
+    return;
+  }
+
+  const { id } = req.params;
+  const job = await jobService.getRecruiterJobById(id, req.user.id);
 
   ok(res, "Job retrieved", job);
 };
 
 /**
  * PUT /api/jobs/:id
- * Update a job (recruiter only)
+ * Update job (recruiter - own jobs only, DRAFT only)
  */
 export const updateJob: AsyncController = async (req, res) => {
   if (!req.user) {
@@ -104,7 +111,7 @@ export const updateJob: AsyncController = async (req, res) => {
 
 /**
  * PATCH /api/jobs/:id/publish
- * Publish a job (DRAFT → OPEN)
+ * Publish job (DRAFT -> OPEN)
  */
 export const publishJob: AsyncController = async (req, res) => {
   if (!req.user) {
@@ -116,6 +123,7 @@ export const publishJob: AsyncController = async (req, res) => {
   }
 
   const { id } = req.params;
+  publishJobSchema.parse(req.body);
   const job = await jobService.publishJob(id, req.user.id);
 
   ok(res, "Job published successfully", job);
@@ -123,7 +131,7 @@ export const publishJob: AsyncController = async (req, res) => {
 
 /**
  * PATCH /api/jobs/:id/close
- * Close a job (OPEN → CLOSED)
+ * Close job (OPEN -> CLOSED)
  */
 export const closeJob: AsyncController = async (req, res) => {
   if (!req.user) {
@@ -135,6 +143,7 @@ export const closeJob: AsyncController = async (req, res) => {
   }
 
   const { id } = req.params;
+  closeJobSchema.parse(req.body);
   const job = await jobService.closeJob(id, req.user.id);
 
   ok(res, "Job closed successfully", job);
@@ -142,7 +151,7 @@ export const closeJob: AsyncController = async (req, res) => {
 
 /**
  * DELETE /api/jobs/:id
- * Delete a job (draft only)
+ * Delete job (DRAFT only)
  */
 export const deleteJob: AsyncController = async (req, res) => {
   if (!req.user) {

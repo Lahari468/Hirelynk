@@ -1,5 +1,4 @@
 import { Router } from "express";
-import * as recruiterController from "../controllers/recruiterController.js";
 import * as recruiterDashboardController from "../controllers/recruiterDashboardController.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { authorize } from "../middleware/authorize.js";
@@ -8,27 +7,7 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 const router = Router();
 
 /**
- * Recruiter profile routes
- */
-
-// GET /api/recruiters/me
-router.get(
-  "/me",
-  authenticate,
-  authorize("RECRUITER"),
-  asyncHandler(recruiterController.getMyProfile)
-);
-
-// PUT /api/recruiters/me
-router.put(
-  "/me",
-  authenticate,
-  authorize("RECRUITER"),
-  asyncHandler(recruiterController.updateMyProfile)
-);
-
-/**
- * Recruiter dashboard routes (specific before generic)
+ * Recruiter dashboard routes
  */
 
 // GET /api/recruiters/dashboard

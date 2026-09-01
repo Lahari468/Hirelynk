@@ -7,26 +7,8 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 const router = Router();
 
 /**
- * Public routes
+ * Recruiter job management routes
  */
-
-// GET /api/jobs - search public jobs
-router.get("/", asyncHandler(jobController.searchJobs));
-
-// GET /api/jobs/:id - get single job (public)
-router.get("/:id", asyncHandler(jobController.getJob));
-
-/**
- * Recruiter routes - must come after public routes
- */
-
-// GET /api/jobs/mine - get recruiter's own jobs
-router.get(
-  "/mine",
-  authenticate,
-  authorize("RECRUITER"),
-  asyncHandler(jobController.getMyJobs)
-);
 
 // POST /api/jobs - create job
 router.post(
@@ -34,6 +16,46 @@ router.post(
   authenticate,
   authorize("RECRUITER"),
   asyncHandler(jobController.createJob)
+);
+
+// GET /api/jobs/mine - get recruiter's jobs (specific route before dynamic)
+router.get(
+  "/mine",
+  authenticate,
+  authorize("RECRUITER"),
+  asyncHandler(jobController.getMyJobs)
+);
+
+/**
+ * Public job discovery routes
+ */
+
+// GET /api/jobs - public job listing with search/filtering
+router.get(
+  "/",
+  asyncHandler(jobController.getPublicJobs)
+);
+
+/**
+ * Recruiter job details routes (specific routes before generic :id)
+ */
+
+// GET /api/jobs/:id/recruiter - recruiter's job details
+router.get(
+  "/:id/recruiter",
+  authenticate,
+  authorize("RECRUITER"),
+  asyncHandler(jobController.getRecruiterJob)
+);
+
+/**
+ * Generic job routes
+ */
+
+// GET /api/jobs/:id - public job details
+router.get(
+  "/:id",
+  asyncHandler(jobController.getJob)
 );
 
 // PUT /api/jobs/:id - update job
