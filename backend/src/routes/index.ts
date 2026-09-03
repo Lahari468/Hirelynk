@@ -12,6 +12,7 @@ import notificationRoutes from "./notificationRoutes.js";
 import candidateRoutes from "./candidateRoutes.js";
 import adminAnalyticsRoutes from "./adminAnalyticsRoutes.js";
 import savedJobRoutes from "./savedJobRoutes.js";
+import interviewRoutes from "./interviewRoutes.js";
 
 const router = Router();
 
@@ -54,6 +55,9 @@ router.use("/candidates/me/resumes", resumeRoutes);
 
 // Notification routes
 router.use("/notifications", notificationRoutes);
+
+// Interview routes
+router.use("/interviews", interviewRoutes);
 
 // Admin routes
 router.use("/admin", adminRoutes);
