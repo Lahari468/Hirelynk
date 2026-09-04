@@ -77,6 +77,7 @@ enum NotificationType {
   OFFER_WITHDRAWN
   MESSAGE_RECEIVED
   FEEDBACK_RECEIVED
+  REPORT_STATUS_UPDATED
 }
 
 enum AuditAction {
@@ -88,6 +89,35 @@ enum AuditAction {
   APPLICATION_STATUS_CHANGED
   INTERVIEW_SCHEDULED
   USER_SUSPENDED
+  REPORT_CREATED
+  REPORT_REVIEWED
+  REPORT_RESOLVED
+  REPORT_DISMISSED
+}
+
+enum ReportTargetType {
+  JOB
+  USER
+  APPLICATION
+  MESSAGE
+  FEEDBACK
+}
+
+enum ReportReason {
+  SPAM
+  FRAUD
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  FAKE_JOB
+  MISLEADING_INFORMATION
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
 }
 
 // ============================================================================
@@ -115,6 +145,8 @@ model User {
   createdOffers          Offer[]                    @relation("OfferCreatedByUser")
   sentMessages           Message[]                  @relation("MessageSender")
   feedbackAuthored       Feedback[]                 @relation("FeedbackAuthor")
+  reportsFiled           Report[]                   @relation("ReportReporter")
+  reportsResolved        Report[]                   @relation("ReportResolvedBy")
 
   @@index([email])
   @@index([role])
@@ -419,6 +451,37 @@ model Feedback {
   @@unique([applicationId, authorId])
   @@index([applicationId])
   @@index([authorId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// REPORT
+// ============================================================================
+
+model Report {
+  id             String           @id @default(uuid()) @db.Uuid
+  reporterId     String           @db.Uuid
+  targetType     ReportTargetType
+  targetId       String           @db.Uuid
+  reason         ReportReason
+  description    String?
+  status         ReportStatus     @default(PENDING)
+  resolvedBy     String?          @db.Uuid
+  resolutionNote String?
+  resolvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relationships
+  // targetId is intentionally not a foreign key: it can point at any of
+  // several target tables (Job, User, Application, Message, Feedback), the
+  // same polymorphic-reference approach already used by AuditLog.entityId.
+  reporter       User  @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedByUser User? @relation("ReportResolvedBy", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([reporterId])
+  @@index([targetType, targetId])
+  @@index([status])
   @@index([createdAt])
 }
 

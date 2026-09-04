@@ -16,6 +16,8 @@ import interviewRoutes from "./interviewRoutes.js";
 import offerRoutes from "./offerRoutes.js";
 import messageRoutes from "./messageRoutes.js";
 import feedbackRoutes from "./feedbackRoutes.js";
+import reportRoutes from "./reportRoutes.js";
+import adminReportRoutes from "./adminReportRoutes.js";
 
 const router = Router();
 
@@ -71,11 +73,17 @@ router.use("/messages", messageRoutes);
 // Feedback routes
 router.use("/feedback", feedbackRoutes);
 
+// Report routes
+router.use("/reports", reportRoutes);
+
 // Admin routes
 router.use("/admin", adminRoutes);
 
 //Admin analytics routes
 router.use("/admin", adminAnalyticsRoutes);
+
+// Admin report moderation routes
+router.use("/admin", adminReportRoutes);
 
 router.use("/candidates/me/saved-jobs", savedJobRoutes);
 
