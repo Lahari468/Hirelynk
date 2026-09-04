@@ -57,6 +57,14 @@ enum InterviewStatus {
   CANCELLED
 }
 
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
 enum NotificationType {
   APPLICATION_SUBMITTED
   APPLICATION_STATUS_CHANGED
@@ -64,6 +72,11 @@ enum NotificationType {
   INTERVIEW_CANCELLED
   NEW_APPLICATION
   OFFER_RECEIVED
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  OFFER_WITHDRAWN
+  MESSAGE_RECEIVED
+  FEEDBACK_RECEIVED
 }
 
 enum AuditAction {
@@ -99,6 +112,9 @@ model User {
   statusHistoryChangedBy ApplicationStatusHistory[] @relation("ChangedByUser")
   interviewsScheduledBy  Interview[]                @relation("ScheduledByUser")
   jobsAsRecruiter        Job[]                      @relation("RecruiterUser")
+  createdOffers          Offer[]                    @relation("OfferCreatedByUser")
+  sentMessages           Message[]                  @relation("MessageSender")
+  feedbackAuthored       Feedback[]                 @relation("FeedbackAuthor")
 
   @@index([email])
   @@index([role])
@@ -230,8 +246,11 @@ model Application {
   candidate     CandidateProfile           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   job           Job?                       @relation(fields: [jobId], references: [id], onDelete: SetNull)
   resume        Resume?                    @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  offer         Offer?
   statusHistory ApplicationStatusHistory[]
   interviews    Interview[]
+  conversation  Conversation?
+  feedback      Feedback[]
 
   // Prevent duplicate applications from same candidate to same job
   @@unique([candidateId, jobId])
@@ -308,6 +327,99 @@ model Interview {
   @@index([scheduledBy])
   @@index([scheduledAt])
   @@index([status])
+}
+
+// ============================================================================
+// OFFER
+// ============================================================================
+
+model Offer {
+  id            String      @id @default(uuid()) @db.Uuid
+  applicationId String      @unique @db.Uuid
+  createdBy     String      @db.Uuid
+  salary        Decimal?
+  startDate     DateTime?
+  expiryDate    DateTime?
+  notes         String?
+  status        OfferStatus @default(PENDING)
+  acceptedAt    DateTime?
+  rejectedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relationships
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  creator     User        @relation("OfferCreatedByUser", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// CONVERSATION
+// ============================================================================
+
+model Conversation {
+  id            String   @id @default(uuid()) @db.Uuid
+  applicationId String   @unique @db.Uuid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  messages    Message[]
+
+  @@index([applicationId])
+}
+
+// ============================================================================
+// MESSAGE
+// ============================================================================
+
+model Message {
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  senderId       String    @db.Uuid
+  content        String
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  // Relationships
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([isRead])
+}
+
+// ============================================================================
+// FEEDBACK
+// ============================================================================
+
+model Feedback {
+  id            String   @id @default(uuid()) @db.Uuid
+  applicationId String   @db.Uuid
+  authorId      String   @db.Uuid
+  rating        Int
+  comment       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  author      User        @relation("FeedbackAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // One feedback entry per participant per application (candidate + recruiter,
+  // never two from the same author on the same application)
+  @@unique([applicationId, authorId])
+  @@index([applicationId])
+  @@index([authorId])
+  @@index([createdAt])
 }
 
 // ============================================================================

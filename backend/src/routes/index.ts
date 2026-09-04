@@ -13,6 +13,9 @@ import candidateRoutes from "./candidateRoutes.js";
 import adminAnalyticsRoutes from "./adminAnalyticsRoutes.js";
 import savedJobRoutes from "./savedJobRoutes.js";
 import interviewRoutes from "./interviewRoutes.js";
+import offerRoutes from "./offerRoutes.js";
+import messageRoutes from "./messageRoutes.js";
+import feedbackRoutes from "./feedbackRoutes.js";
 
 const router = Router();
 
@@ -58,6 +61,15 @@ router.use("/notifications", notificationRoutes);
 
 // Interview routes
 router.use("/interviews", interviewRoutes);
+
+// Offer routes
+router.use("/offers", offerRoutes);
+
+// Messaging routes
+router.use("/messages", messageRoutes);
+
+// Feedback routes
+router.use("/feedback", feedbackRoutes);
 
 // Admin routes
 router.use("/admin", adminRoutes);
